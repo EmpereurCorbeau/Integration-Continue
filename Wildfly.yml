@@ -1,0 +1,64 @@
+---
+- hosts: servers
+  handlers:
+  
+   - name: Relance du service Apache2
+     service: name=apache2 state=reloaded enabled=yes
+     
+   - name: Relance de Wildfly
+      service: name=wildfly state=restarted
+
+  tasks:
+
+   - name: installation du jdk8
+     package: name=openjdk-8-jdk-headless state=present
+
+   - name: création d'un user wildfly
+     user:
+       name: wildfly
+       comment: wildfly
+       system: yes
+       home: /home/wildfly
+       shell: /bin/false
+
+   - name: obtention de l'archive wildfly
+     unarchive:
+       src: http://download.jboss.org/wildfly/11.0.0.Final/wildfly-11.0.0.Final.tar.gz
+       dest: /opt/wildfly
+       owner: wildfly
+       remote_src: yes
+       
+   - name: renommage de wildfly
+     command: mv /opt/wildfly-11.0.0.Final /opt/wildfly
+     
+   - name: configuration de wildfly
+     copy:
+       src: /opt/wildfly/docs/contrib/scripts/systemd/wildfly.conf
+       dest: /etc/wildfly
+       owner: wildfly
+       remote_src: yes
+
+   - name: copie du service
+     copy:
+       src: /opt/wildfly/docs/contrib/scripts/systemd/wildfly.service
+       dest: /etc/systemd/system
+       owner: wildfly
+       remote_src: yes
+     notify: Relance de Wildfly
+
+   - name: copie du launcher
+     copy:
+       src: /opt/wildfly/docs/contrib/scripts/systemd/launch.sh
+       dest: /opt/wildfly/bin
+       owner: wildfly
+       mode: 0644
+       remote_src: yes
+
+   - name: ajout de wildfly dans les daemons
+     systemd:
+       state: restarted
+       daemon_reload: yes
+       name: wildfly
+     notify: Relance du service Apache2
+    
+
